@@ -1,0 +1,33 @@
+1day
+- install visual code
+- install node
+- npm install request
+- upbit api connect
+- data loading
+- npm install supervisor
+- install git
+- git commit, pull, push
+
+2day
+- save data(1month)
+- purchase condition
+- fake trading
+- install xampp(mysql)
+- install npm mysql
+- mysql connect
+
+
+
+ { 
+	market: 'KRW-BTC',
+       candle_date_time_utc: '2018-10-09T04:33:00',
+       candle_date_time_kst: '2018-10-09T13:33:00',
+       opening_price: 7529000,
+       high_price: 7531000,
+       low_price: 7529000,
+       trade_price: 7531000,
+       timestamp: 1539059639945,
+       candle_acc_trade_price: 33662668.70483,
+       candle_acc_trade_volume: 4.47101984,
+       unit: 1 
+},
