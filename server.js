@@ -1,4 +1,7 @@
+var mysql = require('mysql');
 var request = require("request");
+
+var connection = null;
 
 var marketCodeList = [];
 var tradeData = {};
@@ -15,10 +18,11 @@ const RATE_SALE_SUCCESS     = 1;
 const RATE_SALE_FAIL        = -1;
 
 const STATUS_INIT_DATA =            0;
-const STATUS_LOAD_MARKET_DATA =     1;
-const STATUS_LOAD_DATA =            2;
-const STATUS_PURCHASE_CHECK =       3;
-const STATUS_END =                  4;
+const STATUS_CONNECT_DB =           1;
+const STATUS_LOAD_MARKET_DATA =     2;
+const STATUS_LOAD_DATA =            3;
+const STATUS_PURCHASE_CHECK =       4;
+const STATUS_END =                  5;
 var CURRENT_STATUS = STATUS_INIT_DATA;
 
 LoadStatus();
@@ -26,6 +30,10 @@ function LoadStatus() {
     switch(CURRENT_STATUS++) {
         case STATUS_INIT_DATA: {
             InitData();
+        }
+        break;
+        case STATUS_CONNECT_DB: {
+            ConnectDatabase();
         }
         break;
         case STATUS_LOAD_MARKET_DATA: {
@@ -51,6 +59,23 @@ function LoadStatus() {
 function InitData() {
     compareTime = new Date();
     compareTime.setDate(compareTime.getDate() - 1);
+
+    LoadStatus();
+}
+
+function ConnectDatabase() {
+    var mysqlConfig = {
+        host: 'localhost',
+        user: 'root',
+        password: '',
+        port: 3306,
+        database: 'upbit',
+        multipleStatements: true
+    }
+
+    connection = mysql.createConnection(mysqlConfig);
+    connection.connect();
+
     LoadStatus();
 }
 
@@ -63,23 +88,43 @@ function GetMarketCode() {
     request(options, (error, response, body) => {
         if (error) throw new Error(error);
     
-        var count = 0;
         var data = JSON.parse(body);
-        for (var i = 0; i < data.length; i++) {
-            if (data[i].market.includes('KRW-')) {
-                marketCodeList.push(data[i]);
-                tradeData[data[i].market] = [];
-                // count++;
-                // if (count >= 5) {
-                //     break;
-                // }
-            }
-        }
-        LoadStatus();   
+
+        connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+            if (error) throw error;
+
+            data.forEach(async (item) => {
+                if (item.market.includes('KRW-')) {
+                    var isExist = false;
+                    for (var i = 0; i < results.length; i++) {
+                        if (item.market == results[i].market) {
+                            isExist = true;
+                            break;
+                        }   
+                    }
+
+                    if (isExist == false) {
+                        connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
+                            console.log(item);
+                        });
+                    }
+                }
+            });
+
+            connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+                if (error) throw error;
+
+                results.forEach((item) => {
+                    marketCodeList.push(item);
+                    tradeData[item.market] = [];
+                });
+                
+                LoadStatus();   
+            });
+        });
     });
 }
 
-var tempObject;
 function GetCandleMinute(marketCode, time) {
     var options = { 
         method: 'GET',
