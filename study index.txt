@@ -18,16 +18,9 @@
 
 
 
- { 
-	market: 'KRW-BTC',
-       candle_date_time_utc: '2018-10-09T04:33:00',
-       candle_date_time_kst: '2018-10-09T13:33:00',
-       opening_price: 7529000,
-       high_price: 7531000,
-       low_price: 7529000,
-       trade_price: 7531000,
-       timestamp: 1539059639945,
-       candle_acc_trade_price: 33662668.70483,
-       candle_acc_trade_volume: 4.47101984,
-       unit: 1 
-},
+account info -> money : 10000000;
+
+1. 1->2 1%^ -> purchase(coin purchasing ?)
+   2->3...->10 -> 1%^ : sale;
+   2->3...->10 - -1% : sale;
+   

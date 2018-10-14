@@ -10,8 +10,9 @@ var compareTime = 0;
 var balance = 1000000;
 var purchaseAmount = 10000;
 
-const RATE_PURCHASE = 0.05;
-const RATE_SALE     = -0.05;
+const RATE_PURCHASE         = 3;
+const RATE_SALE_SUCCESS     = 1;
+const RATE_SALE_FAIL        = -1;
 
 const STATUS_INIT_DATA =            0;
 const STATUS_LOAD_MARKET_DATA =     1;
@@ -49,7 +50,7 @@ function LoadStatus() {
 
 function InitData() {
     compareTime = new Date();
-    compareTime.setMinutes(compareTime.getMinutes() - 10);
+    compareTime.setDate(compareTime.getDate() - 1);
     LoadStatus();
 }
 
@@ -68,10 +69,10 @@ function GetMarketCode() {
             if (data[i].market.includes('KRW-')) {
                 marketCodeList.push(data[i]);
                 tradeData[data[i].market] = [];
-                count++;
-                if (count >= 5) {
-                    break;
-                }
+                // count++;
+                // if (count >= 5) {
+                //     break;
+                // }
             }
         }
         LoadStatus();   
@@ -86,7 +87,7 @@ function GetCandleMinute(marketCode, time) {
         qs: { 
             market: marketCode,
             to: time,
-            count: 10
+            count: 200
         } 
     };
   
@@ -126,15 +127,16 @@ function coinCheck(marketCode) {
         var start = isTrading(marketCode) ? getTradingInfo(marketCode).trade_price : tradeData[marketCode][i].trade_price;
         var end = tradeData[marketCode][i + 1].trade_price;
         var rate = (end - start) / start * 100;
-        if (rate >= RATE_PURCHASE) {
-            // purchase
-            if (purchaseCoin(marketCode, end)) {
-                console.log('++++++ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
-            }
-        } else if (rate <= RATE_SALE) {
+
+        if (isTrading(marketCode) && (rate >= RATE_SALE_SUCCESS || rate <= RATE_SALE_FAIL)) {
             // sale
             if (saleCoin(marketCode, rate)) {
                 console.log('------ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
+            }
+        } else if (rate >= RATE_PURCHASE) {
+            // purchase
+            if (purchaseCoin(marketCode, end)) {
+                console.log('++++++ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
             }
         }
     }
@@ -170,7 +172,9 @@ function saleCoin(marketCode, rate) {
     for (var i = 0; i < tradingList.length; i++) {
         if (tradingList[i].code == marketCode) {
             var temp = purchaseAmount * (rate / 100);
-            balance += purchaseAmount + temp;
+            var income = purchaseAmount + temp;
+            console.log('Balance : ' + balance + ' + (' + income + ')');
+            balance += income;
             tradingList.splice(i, 1);
             return true;
         }
