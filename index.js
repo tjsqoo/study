@@ -6,6 +6,7 @@ var connection = null;
 var marketCodeList = [];
 var tradeData = {};
 var tradingList = [];
+var tickerData = [];
 
 var currentMarketIndex = 0;
 var compareTime = 0;
@@ -13,16 +14,17 @@ var compareTime = 0;
 var balance = 1000000;
 var purchaseAmount = 10000;
 
-const RATE_PURCHASE         = 3;
-const RATE_SALE_SUCCESS     = 1;
-const RATE_SALE_FAIL        = -1;
+const RATE_PURCHASE         = 1;
+const RATE_SALE_SUCCESS     = 0.5;
+const RATE_SALE_FAIL        = -0.5;
 
 const STATUS_INIT_DATA =            0;
 const STATUS_CONNECT_DB =           1;
 const STATUS_LOAD_MARKET_DATA =     2;
 const STATUS_LOAD_DATA =            3;
 const STATUS_PURCHASE_CHECK =       4;
-const STATUS_END =                  5;
+const STATUS_LOAD_TICKER_DATA =     5;
+const STATUS_END =                  6;
 var CURRENT_STATUS = STATUS_INIT_DATA;
 
 LoadStatus();
@@ -41,12 +43,18 @@ function LoadStatus() {
         }
         break;
         case STATUS_LOAD_DATA: {
-            console.log(marketCodeList[currentMarketIndex].korean_name);
-            GetCandleMinute(marketCodeList[currentMarketIndex].market, null);
+            CURRENT_STATUS = STATUS_PURCHASE_CHECK;
+            LoadStatus();
+            // console.log(marketCodeList[currentMarketIndex].korean_name);
+            // GetCandleMinute(marketCodeList[currentMarketIndex].market, null);
         }
         break;
         case STATUS_PURCHASE_CHECK: {
             coinCheck(marketCodeList[currentMarketIndex].market);
+        }
+        break;
+        case STATUS_LOAD_TICKER_DATA: {
+            LoadTickerData(marketCodeList[currentMarketIndex].market);
         }
         break;
         case STATUS_END: {
@@ -65,9 +73,9 @@ function InitData() {
 
 function ConnectDatabase() {
     var mysqlConfig = {
-        host: 'localhost',
-        user: 'root',
-        password: '',
+        host: '14.32.143.16',
+        user: 'xdea',
+        password: 'xdea326500',
         port: 3306,
         database: 'upbit',
         multipleStatements: true
@@ -117,6 +125,10 @@ function GetMarketCode() {
                 results.forEach((item) => {
                     marketCodeList.push(item);
                     tradeData[item.market] = [];
+                    tickerData.push({
+                        market: item.market,
+                        current_price: 0
+                    });
                 });
                 
                 LoadStatus();   
@@ -251,4 +263,72 @@ function programEnd() {
     }
 
     console.log('END RESULT : ' + balance.toFixed(0));
+}
+
+function LoadTickerData(marketCode) {
+    var options = { 
+        method: 'GET',
+        url: 'https://api.upbit.com/v1/ticker',
+        qs: { markets: marketCode } 
+    };
+
+    request(options, function (error, response, body) {
+        if (error) {
+            console.log(error);
+        } else {
+            var data = JSON.parse(body);
+            var data = data[0];
+            for (var i = 0; i < tickerData.length; i++) {
+                if (tickerData[i].market == marketCode && tickerData[i].current_price != data.trade_price) {
+                    var last = tickerData[i].current_price;
+                    var current = data.trade_price;
+    
+                    tickerData[i].current_price = current;
+    
+                    if (last == 0) {
+                        break;
+                    } 
+
+                    CalculateRate(marketCode, last, current);
+
+                    // var temp = {
+                    //     market: marketCode,
+                    //     trade_price: current,
+                    //     timestamp: data.timestamp
+                    // }
+                    // connection.query('INSERT INTO tickerlist SET ?', temp, function(error, results, fields) {
+                    // });
+                    break;
+                }
+            }
+        }
+        
+        setTimeout(() => {
+            currentMarketIndex++;
+            if (currentMarketIndex >= marketCodeList.length) {
+                currentMarketIndex = 0;
+            }
+            LoadTickerData(marketCodeList[currentMarketIndex].market);
+        }, 100);
+    });
+
+    function CalculateRate(marketCode, last, current) {
+        var start = isTrading(marketCode) ? getTradingInfo(marketCode).trade_price : last;
+        var end = current;
+        var rate = (end - start) / start * 100;
+
+        // console.log(marketCode + ': ' + last + ' => ' + current + '(' + rate.toFixed(2) + ')');
+
+        if (isTrading(marketCode) && (rate >= RATE_SALE_SUCCESS || rate <= RATE_SALE_FAIL)) {
+            // sale
+            if (saleCoin(marketCode, rate)) {
+                console.log('------ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
+            }
+        } else if (rate >= RATE_PURCHASE) {
+            // purchase
+            if (purchaseCoin(marketCode, end)) {
+                console.log('++++++ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
+            }
+        }
+    }
 }
