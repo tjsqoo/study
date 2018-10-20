@@ -138,7 +138,7 @@ function GetCandleMinute(marketCode, time) {
   
   request(options, (error, response, body) => {
     if (error) throw new Error(error);
-  
+    
     var result = JSON.parse(body);
     var objectName = marketCodeList[currentMarketIndex].market;
     tradeData[objectName].push(...result);
