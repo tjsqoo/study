@@ -65,9 +65,9 @@ function InitData() {
 
 function ConnectDatabase() {
     var mysqlConfig = {
-        host: 'localhost',
-        user: 'root',
-        password: '',
+        host: '14.32.143.16',
+        user: 'xdea',
+        password: 'xdea326500',
         port: 3306,
         database: 'upbit',
         multipleStatements: true
