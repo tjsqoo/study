@@ -35,7 +35,8 @@ function LoadStatus() {
         }
         break;
         case STATUS_CONNECT_DB: {
-            ConnectDatabase();
+            //ConnectDatabase();
+            LoadStatus();
         }
         break;
         case STATUS_LOAD_MARKET_DATA: {
@@ -90,47 +91,60 @@ function ConnectDatabase() {
 function GetMarketCode() {
     var options = { 
         method: 'GET',
-        url: 'https://api.upbit.com/v1/market/all' 
+        url: 'https://api.bithumb.com/public/ticker/ALL' 
     };
     
     request(options, (error, response, body) => {
         if (error) throw new Error(error);
     
         var data = JSON.parse(body);
-
-        connection.query('SELECT * FROM marketlist', (error, results, fields) => {
-            if (error) throw error;
-
-            data.forEach(async (item) => {
-                if (item.market.includes('KRW-')) {
-                    var isExist = false;
-                    for (var i = 0; i < results.length; i++) {
-                        if (item.market == results[i].market) {
-                            isExist = true;
-                            break;
-                        }   
-                    }
-
-                    if (isExist == false) {
-                        connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
-                            console.log(item);
-                        });
-                    }
-                }
+        var array = Object.keys(data.data);
+        
+        array.forEach((item) => {
+            marketCodeList.push({
+                market: item,
+                korean_name: item,
+                english_name: item
             });
-
-            connection.query('SELECT * FROM marketlist', (error, results, fields) => {
-                if (error) throw error;
-
-                results.forEach((item) => {
-                    marketCodeList.push(item);
-                    tradeData[item.market] = [];
-                    tickerData[item.market] = [];
-                });
-                
-                LoadStatus();   
-            });
+            tradeData[item] = [];
+            tickerData[item] = [];
         });
+
+        LoadStatus();   
+
+        // connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+        //     if (error) throw error;
+
+        //     data.forEach(async (item) => {
+        //         if (item.market.includes('KRW-')) {
+        //             var isExist = false;
+        //             for (var i = 0; i < results.length; i++) {
+        //                 if (item.market == results[i].market) {
+        //                     isExist = true;
+        //                     break;
+        //                 }   
+        //             }
+
+        //             if (isExist == false) {
+        //                 connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
+        //                     console.log(item);
+        //                 });
+        //             }
+        //         }
+        //     });
+
+        //     connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+        //         if (error) throw error;
+
+        //         results.forEach((item) => {
+        //             marketCodeList.push(item);
+        //             tradeData[item.market] = [];
+        //             tickerData[item.market] = [];
+        //         });
+                
+        //         LoadStatus();   
+        //     });
+        // });
     });
 }
 
@@ -265,8 +279,7 @@ function programEnd() {
 function LoadTickerData(marketCode) {
     var options = { 
         method: 'GET',
-        url: 'https://api.upbit.com/v1/ticker',
-        qs: { markets: marketCode } 
+        url: 'https://api.bithumb.com/public/ticker/' + marketCode
     };
 
     request(options, function (error, response, body) {
@@ -274,7 +287,7 @@ function LoadTickerData(marketCode) {
             console.log(error);
         } else {
             var data = JSON.parse(body);
-            var data = data[0];
+            var data = data.data;
             
             var tickerList = tickerData[marketCode];
             var currentTime = new Date().getTime();
@@ -288,18 +301,18 @@ function LoadTickerData(marketCode) {
                 i++;
             }
 
-            if (tickerList.length == 0 || tickerList[tickerList.length -1].current_price != data.trade_price) {
+            if (tickerList.length == 0 || tickerList[tickerList.length -1].current_price != data.closing_price) {
                 tickerList.push({
-                    current_price: data.trade_price,
-                    timestamp: data.timestamp
+                    current_price: data.closing_price,
+                    timestamp: data.date
                 });
                 //console.log('push // length: ' + tickerList.length);
             }
 
             var last_price = tickerList[0].current_price;
-            var current_price = data.trade_price;
+            var current_price = data.closing_price;
 
-            CalculateRate(marketCode, last_price, current_price, tickerList[0].timestamp, data.timestamp);
+            CalculateRate(marketCode, last_price, current_price, tickerList[0].timestamp, data.date);
         }
         
         setTimeout(() => {

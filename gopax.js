@@ -90,7 +90,7 @@ function ConnectDatabase() {
 function GetMarketCode() {
     var options = { 
         method: 'GET',
-        url: 'https://api.upbit.com/v1/market/all' 
+        url: 'https://api.gopax.co.kr/trading-pairs' 
     };
     
     request(options, (error, response, body) => {
@@ -98,39 +98,53 @@ function GetMarketCode() {
     
         var data = JSON.parse(body);
 
-        connection.query('SELECT * FROM marketlist', (error, results, fields) => {
-            if (error) throw error;
-
-            data.forEach(async (item) => {
-                if (item.market.includes('KRW-')) {
-                    var isExist = false;
-                    for (var i = 0; i < results.length; i++) {
-                        if (item.market == results[i].market) {
-                            isExist = true;
-                            break;
-                        }   
-                    }
-
-                    if (isExist == false) {
-                        connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
-                            console.log(item);
-                        });
-                    }
-                }
-            });
-
-            connection.query('SELECT * FROM marketlist', (error, results, fields) => {
-                if (error) throw error;
-
-                results.forEach((item) => {
-                    marketCodeList.push(item);
-                    tradeData[item.market] = [];
-                    tickerData[item.market] = [];
+        data.forEach((item) => {
+            if (item.name.includes('-KRW')) {
+                marketCodeList.push({
+                    market: item.name,
+                    korean_name: item.name,
+                    english_name: item.name
                 });
-                
-                LoadStatus();   
-            });
+                tradeData[item.name] = [];
+                tickerData[item.name] = [];
+            }
         });
+
+        LoadStatus();
+
+        // connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+        //     if (error) throw error;
+
+        //     data.forEach(async (item) => {
+        //         if (item.market.includes('KRW-')) {
+        //             var isExist = false;
+        //             for (var i = 0; i < results.length; i++) {
+        //                 if (item.market == results[i].market) {
+        //                     isExist = true;
+        //                     break;
+        //                 }   
+        //             }
+
+        //             if (isExist == false) {
+        //                 connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
+        //                     console.log(item);
+        //                 });
+        //             }
+        //         }
+        //     });
+
+        //     connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+        //         if (error) throw error;
+
+        //         results.forEach((item) => {
+        //             marketCodeList.push(item);
+        //             tradeData[item.market] = [];
+        //             tickerData[item.market] = [];
+        //         });
+                
+        //         LoadStatus();   
+        //     });
+        // });
     });
 }
 
@@ -265,8 +279,7 @@ function programEnd() {
 function LoadTickerData(marketCode) {
     var options = { 
         method: 'GET',
-        url: 'https://api.upbit.com/v1/ticker',
-        qs: { markets: marketCode } 
+        url: 'https://api.gopax.co.kr/trading-pairs/' + marketCode + '/ticker'
     };
 
     request(options, function (error, response, body) {
@@ -274,10 +287,10 @@ function LoadTickerData(marketCode) {
             console.log(error);
         } else {
             var data = JSON.parse(body);
-            var data = data[0];
             
             var tickerList = tickerData[marketCode];
             var currentTime = new Date().getTime();
+            var currentTimestamp = new Date(data.time).getTime();
             
             for (var i = 0; i < tickerList.length;) {
                 if (tickerList[i].timestamp <= currentTime - 180000) {
@@ -288,18 +301,18 @@ function LoadTickerData(marketCode) {
                 i++;
             }
 
-            if (tickerList.length == 0 || tickerList[tickerList.length -1].current_price != data.trade_price) {
+            if (tickerList.length == 0 || tickerList[tickerList.length -1].current_price != data.price) {
                 tickerList.push({
-                    current_price: data.trade_price,
-                    timestamp: data.timestamp
+                    current_price: data.price,
+                    timestamp: currentTimestamp
                 });
                 //console.log('push // length: ' + tickerList.length);
             }
 
             var last_price = tickerList[0].current_price;
-            var current_price = data.trade_price;
+            var current_price = data.price;
 
-            CalculateRate(marketCode, last_price, current_price, tickerList[0].timestamp, data.timestamp);
+            CalculateRate(marketCode, last_price, current_price, tickerList[0].timestamp, currentTimestamp);
         }
         
         setTimeout(() => {
