@@ -1,5 +1,8 @@
+console.log('/////////////////////BITHUMB/////////////////////');
+
 var mysql = require('mysql');
 var request = require("request");
+var common = require('../_lib/common.js');
 
 var connection = null;
 
@@ -13,10 +16,6 @@ var compareTime = 0;
 
 var balance = 10000000;
 var purchaseAmount = 100000;
-
-const RATE_PURCHASE         = 0.5;
-const RATE_SALE_SUCCESS     = 0.3;
-const RATE_SALE_FAIL        = -0.3;
 
 const STATUS_INIT_DATA =            0;
 const STATUS_CONNECT_DB =           1;
@@ -99,17 +98,18 @@ function GetMarketCode() {
     
         var data = JSON.parse(body);
         var array = Object.keys(data.data);
-        
         array.forEach((item) => {
-            marketCodeList.push({
-                market: item,
-                korean_name: item,
-                english_name: item
-            });
-            tradeData[item] = [];
-            tickerData[item] = [];
+            if (item != 'date') {
+                marketCodeList.push({
+                    market: item,
+                    korean_name: item,
+                    english_name: item
+                });
+                tradeData[item] = [];
+                tickerData[item] = [];
+            }
         });
-
+        
         LoadStatus();   
 
         // connection.query('SELECT * FROM marketlist', (error, results, fields) => {
@@ -196,12 +196,12 @@ function coinCheck(marketCode) {
         var end = tradeData[marketCode][i + 1].trade_price;
         var rate = (end - start) / start * 100;
 
-        if (isTrading(marketCode) && (rate >= RATE_SALE_SUCCESS || rate <= RATE_SALE_FAIL)) {
+        if (isTrading(marketCode) && (rate >= common.rate.success || rate <= common.rate.fail)) {
             // sale
             if (saleCoin(marketCode, rate)) {
                 console.log('------ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
             }
-        } else if (rate >= RATE_PURCHASE) {
+        } else if (rate >= common.rate.purchase) {
             // purchase
             if (purchaseCoin(marketCode, end)) {
                 console.log('++++++ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
@@ -288,7 +288,7 @@ function LoadTickerData(marketCode) {
         } else {
             var data = JSON.parse(body);
             var data = data.data;
-            
+                
             var tickerList = tickerData[marketCode];
             var currentTime = new Date().getTime();
             
@@ -321,7 +321,7 @@ function LoadTickerData(marketCode) {
                 currentMarketIndex = 0;
             }
             LoadTickerData(marketCodeList[currentMarketIndex].market);
-        }, 1000);
+        }, 100);
     });
 
     function CalculateRate(marketCode, last, current, last_timestamp, current_timestamp) {
@@ -331,12 +331,12 @@ function LoadTickerData(marketCode) {
         var time = (current_timestamp - last_timestamp) / 1000;
         //console.log(marketCode + ': ' + last + ' => ' + current + '(' + rate.toFixed(2) + ')');
 
-        if (isTrading(marketCode) && (rate >= RATE_SALE_SUCCESS || rate <= RATE_SALE_FAIL)) {
+        if (isTrading(marketCode) && (rate >= common.rate.success || rate <= common.rate.fail)) {
             // sale
             if (saleCoin(marketCode, rate)) {
                 console.log('------ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%(' + time.toFixed(0) + '초)');
             }
-        } else if (rate >= RATE_PURCHASE) {
+        } else if (rate >= common.rate.purchase) {
             // purchase
             if (purchaseCoin(marketCode, end)) {
                 console.log('++++++ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%(' + time.toFixed(0) + '초)');

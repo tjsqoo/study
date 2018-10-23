@@ -1,5 +1,8 @@
+console.log('/////////////////////GOPAX/////////////////////');
+
 var mysql = require('mysql');
 var request = require("request");
+var common = require('../_lib/common.js');
 
 var connection = null;
 
@@ -13,10 +16,6 @@ var compareTime = 0;
 
 var balance = 10000000;
 var purchaseAmount = 100000;
-
-const RATE_PURCHASE         = 0.5;
-const RATE_SALE_SUCCESS     = 0.3;
-const RATE_SALE_FAIL        = -0.3;
 
 const STATUS_INIT_DATA =            0;
 const STATUS_CONNECT_DB =           1;
@@ -90,7 +89,7 @@ function ConnectDatabase() {
 function GetMarketCode() {
     var options = { 
         method: 'GET',
-        url: 'https://api.upbit.com/v1/market/all' 
+        url: 'https://api.gopax.co.kr/trading-pairs' 
     };
     
     request(options, (error, response, body) => {
@@ -98,39 +97,53 @@ function GetMarketCode() {
     
         var data = JSON.parse(body);
 
-        connection.query('SELECT * FROM marketlist', (error, results, fields) => {
-            if (error) throw error;
-
-            data.forEach(async (item) => {
-                if (item.market.includes('KRW-')) {
-                    var isExist = false;
-                    for (var i = 0; i < results.length; i++) {
-                        if (item.market == results[i].market) {
-                            isExist = true;
-                            break;
-                        }   
-                    }
-
-                    if (isExist == false) {
-                        connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
-                            console.log(item);
-                        });
-                    }
-                }
-            });
-
-            connection.query('SELECT * FROM marketlist', (error, results, fields) => {
-                if (error) throw error;
-
-                results.forEach((item) => {
-                    marketCodeList.push(item);
-                    tradeData[item.market] = [];
-                    tickerData[item.market] = [];
+        data.forEach((item) => {
+            if (item.name.includes('-KRW')) {
+                marketCodeList.push({
+                    market: item.name,
+                    korean_name: item.name,
+                    english_name: item.name
                 });
-                
-                LoadStatus();   
-            });
+                tradeData[item.name] = [];
+                tickerData[item.name] = [];
+            }
         });
+
+        LoadStatus();
+
+        // connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+        //     if (error) throw error;
+
+        //     data.forEach(async (item) => {
+        //         if (item.market.includes('KRW-')) {
+        //             var isExist = false;
+        //             for (var i = 0; i < results.length; i++) {
+        //                 if (item.market == results[i].market) {
+        //                     isExist = true;
+        //                     break;
+        //                 }   
+        //             }
+
+        //             if (isExist == false) {
+        //                 connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
+        //                     console.log(item);
+        //                 });
+        //             }
+        //         }
+        //     });
+
+        //     connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+        //         if (error) throw error;
+
+        //         results.forEach((item) => {
+        //             marketCodeList.push(item);
+        //             tradeData[item.market] = [];
+        //             tickerData[item.market] = [];
+        //         });
+                
+        //         LoadStatus();   
+        //     });
+        // });
     });
 }
 
@@ -182,12 +195,12 @@ function coinCheck(marketCode) {
         var end = tradeData[marketCode][i + 1].trade_price;
         var rate = (end - start) / start * 100;
 
-        if (isTrading(marketCode) && (rate >= RATE_SALE_SUCCESS || rate <= RATE_SALE_FAIL)) {
+        if (isTrading(marketCode) && (rate >= common.rate.success || rate <= common.rate.fail)) {
             // sale
             if (saleCoin(marketCode, rate)) {
                 console.log('------ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
             }
-        } else if (rate >= RATE_PURCHASE) {
+        } else if (rate >= common.rate.purchase) {
             // purchase
             if (purchaseCoin(marketCode, end)) {
                 console.log('++++++ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%');
@@ -265,8 +278,7 @@ function programEnd() {
 function LoadTickerData(marketCode) {
     var options = { 
         method: 'GET',
-        url: 'https://api.upbit.com/v1/ticker',
-        qs: { markets: marketCode } 
+        url: 'https://api.gopax.co.kr/trading-pairs/' + marketCode + '/ticker'
     };
 
     request(options, function (error, response, body) {
@@ -274,10 +286,10 @@ function LoadTickerData(marketCode) {
             console.log(error);
         } else {
             var data = JSON.parse(body);
-            var data = data[0];
             
             var tickerList = tickerData[marketCode];
             var currentTime = new Date().getTime();
+            var currentTimestamp = new Date(data.time).getTime();
             
             for (var i = 0; i < tickerList.length;) {
                 if (tickerList[i].timestamp <= currentTime - 180000) {
@@ -288,18 +300,18 @@ function LoadTickerData(marketCode) {
                 i++;
             }
 
-            if (tickerList.length == 0 || tickerList[tickerList.length -1].current_price != data.trade_price) {
+            if (tickerList.length == 0 || tickerList[tickerList.length -1].current_price != data.price) {
                 tickerList.push({
-                    current_price: data.trade_price,
-                    timestamp: data.timestamp
+                    current_price: data.price,
+                    timestamp: currentTimestamp
                 });
                 //console.log('push // length: ' + tickerList.length);
             }
 
             var last_price = tickerList[0].current_price;
-            var current_price = data.trade_price;
+            var current_price = data.price;
 
-            CalculateRate(marketCode, last_price, current_price, tickerList[0].timestamp, data.timestamp);
+            CalculateRate(marketCode, last_price, current_price, tickerList[0].timestamp, currentTimestamp);
         }
         
         setTimeout(() => {
@@ -308,7 +320,7 @@ function LoadTickerData(marketCode) {
                 currentMarketIndex = 0;
             }
             LoadTickerData(marketCodeList[currentMarketIndex].market);
-        }, 1000);
+        }, 100);
     });
 
     function CalculateRate(marketCode, last, current, last_timestamp, current_timestamp) {
@@ -318,12 +330,12 @@ function LoadTickerData(marketCode) {
         var time = (current_timestamp - last_timestamp) / 1000;
         //console.log(marketCode + ': ' + last + ' => ' + current + '(' + rate.toFixed(2) + ')');
 
-        if (isTrading(marketCode) && (rate >= RATE_SALE_SUCCESS || rate <= RATE_SALE_FAIL)) {
+        if (isTrading(marketCode) && (rate >= common.rate.success || rate <= common.rate.fail)) {
             // sale
             if (saleCoin(marketCode, rate)) {
                 console.log('------ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%(' + time.toFixed(0) + '초)');
             }
-        } else if (rate >= RATE_PURCHASE) {
+        } else if (rate >= common.rate.purchase) {
             // purchase
             if (purchaseCoin(marketCode, end)) {
                 console.log('++++++ : ' + marketCode + ' (' + balance.toFixed(0) + ') // ' + start + ' -> ' + end + ' RATE : ' + rate.toFixed(2) + '%(' + time.toFixed(0) + '초)');
