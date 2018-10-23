@@ -34,7 +34,8 @@ function LoadStatus() {
         }
         break;
         case STATUS_CONNECT_DB: {
-            ConnectDatabase();
+            //ConnectDatabase();
+            LoadStatus();
         }
         break;
         case STATUS_LOAD_MARKET_DATA: {
@@ -72,9 +73,9 @@ function InitData() {
 
 function ConnectDatabase() {
     var mysqlConfig = {
-        host: '14.32.143.16',
+        host: '',
         user: 'xdea',
-        password: 'xdea326500',
+        password: '',
         port: 3306,
         database: 'upbit',
         multipleStatements: true

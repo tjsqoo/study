@@ -34,7 +34,8 @@ function LoadStatus() {
         }
         break;
         case STATUS_CONNECT_DB: {
-            ConnectDatabase();
+            //ConnectDatabase();
+            LoadStatus();
         }
         break;
         case STATUS_LOAD_MARKET_DATA: {
@@ -72,9 +73,9 @@ function InitData() {
 
 function ConnectDatabase() {
     var mysqlConfig = {
-        host: '14.32.143.16',
+        host: '',
         user: 'xdea',
-        password: 'xdea326500',
+        password: '',
         port: 3306,
         database: 'upbit',
         multipleStatements: true
@@ -97,39 +98,49 @@ function GetMarketCode() {
     
         var data = JSON.parse(body);
 
-        connection.query('SELECT * FROM marketlist', (error, results, fields) => {
-            if (error) throw error;
-
-            data.forEach(async (item) => {
-                if (item.market.includes('KRW-')) {
-                    var isExist = false;
-                    for (var i = 0; i < results.length; i++) {
-                        if (item.market == results[i].market) {
-                            isExist = true;
-                            break;
-                        }   
-                    }
-
-                    if (isExist == false) {
-                        connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
-                            console.log(item);
-                        });
-                    }
-                }
-            });
-
-            connection.query('SELECT * FROM marketlist', (error, results, fields) => {
-                if (error) throw error;
-
-                results.forEach((item) => {
-                    marketCodeList.push(item);
-                    tradeData[item.market] = [];
-                    tickerData[item.market] = [];
-                });
-                
-                LoadStatus();   
-            });
+        data.forEach((item) => {
+            if (item.market.includes('KRW-')) {
+                marketCodeList.push(item);
+                tradeData[item.market] = [];
+                tickerData[item.market] = [];
+            }
         });
+        
+        LoadStatus();   
+        
+        // connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+        //     if (error) throw error;
+
+        //     data.forEach(async (item) => {
+        //         if (item.market.includes('KRW-')) {
+        //             var isExist = false;
+        //             for (var i = 0; i < results.length; i++) {
+        //                 if (item.market == results[i].market) {
+        //                     isExist = true;
+        //                     break;
+        //                 }   
+        //             }
+
+        //             if (isExist == false) {
+        //                 connection.query('INSERT INTO marketlist SET ?', item, function(error, results, fields) {
+        //                     console.log(item);
+        //                 });
+        //             }
+        //         }
+        //     });
+
+        //     connection.query('SELECT * FROM marketlist', (error, results, fields) => {
+        //         if (error) throw error;
+
+        //         results.forEach((item) => {
+        //             marketCodeList.push(item);
+        //             tradeData[item.market] = [];
+        //             tickerData[item.market] = [];
+        //         });
+                
+        //         LoadStatus();   
+        //     });
+        // });
     });
 }
 
