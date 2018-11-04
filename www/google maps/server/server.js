@@ -11,6 +11,12 @@ app.get('/', (req, res) => {
   });
 });
 
+app.get('/template', (req, res) => {
+  res.sendFile('template.html', {
+    root: '../client'
+  });
+});
+
 app.listen(3000, function() {
     console.log('Conneted 3000 port!');
   });
