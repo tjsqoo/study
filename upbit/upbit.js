@@ -298,18 +298,20 @@ function LoadTickerData(marketCode) {
                 i++;
             }
 
-            if (tickerList.length == 0 || tickerList[tickerList.length - 1].current_price != data.trade_price) {
-                tickerList.push({
-                    current_price: data.trade_price,
-                    timestamp: data.timestamp
-                });
-                //console.log('push // length: ' + tickerList.length);
+            if (!data.trade_price == null) {
+                if (tickerList.length == 0 || tickerList[tickerList.length - 1].current_price != data.trade_price) {
+                    tickerList.push({
+                        current_price: data.trade_price,
+                        timestamp: data.timestamp
+                    });
+                    //console.log('push // length: ' + tickerList.length);
+                }
+    
+                var last_price = tickerList[0].current_price;
+                var current_price = data.trade_price;
+    
+                CalculateRate(marketCode, last_price, current_price, tickerList[0].timestamp, data.timestamp);    
             }
-
-            var last_price = tickerList[0].current_price;
-            var current_price = data.trade_price;
-
-            CalculateRate(marketCode, last_price, current_price, tickerList[0].timestamp, data.timestamp);
         }
 
         setTimeout(() => {
